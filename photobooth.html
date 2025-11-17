@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photobooth</title>
+  <style>
+    :root{
+      --bg:#000000;
+      --card:#000000;
+      --accent:#ff0000;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,#000000 0%, #0f1724 100%);
+      color:#e6eef8;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      gap:20px;
+    }
+
+    .app {
+      width:100%;
+      max-width:1100px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius:12px;
+      padding:18px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:18px;
+      align-items:start;
+    }
+
+    header{
+      grid-column:1/-1;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    header h1{
+      margin:0;
+      font-size:1.1rem;
+      letter-spacing:0.2px;
+    }
+    header .subtitle{
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+
+    /* Left: Camera + controls */
+    .camera-card{
+      background: var(--glass);
+      border-radius:10px;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:420px;
+      align-items:center;
+      justify-content:flex-start;
+    }
+
+    video, canvas{
+      width:100%;
+      max-width:640px;
+      height:360px;
+      background:#000;
+      border-radius:8px;
+      object-fit:cover;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .controls{
+      width:100%;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-start;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      background:transparent;
+      color:var(--accent);
+      border: 1px solid rgba(110,231,183,0.16);
+      padding:10px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      transition:transform .08s ease, opacity .08s;
+    }
+    .btn:active{ transform:translateY(1px)}
+    .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+    .danger{
+      color:#ffb4a2;
+      border-color: rgba(255,180,162,0.12);
+    }
+
+    .status-row{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      width:100%;
+      justify-content:space-between;
+    }
+    .timer{
+      font-size:2.4rem;
+      font-weight:700;
+      color:var(--accent);
+      min-width:110px;
+      text-align:center;
+      background:rgba(255,255,255,0.02);
+      padding:8px 10px;
+      border-radius:8px;
+    }
+    .info{
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+
+    /* Right: Gallery */
+    .gallery-card{
+      background: var(--glass);
+      border-radius:10px;
+      padding:12px;
+      min-height:420px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .gallery-grid{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:8px;
+      overflow:auto;
+      padding:4px;
+    }
+    .thumb{
+      background:#000;
+      border-radius:6px;
+      overflow:hidden;
+      position:relative;
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .thumb .meta{
+      position:absolute;
+      bottom:6px;
+      left:6px;
+      right:6px;
+      display:flex;
+      justify-content:space-between;
+      gap:6px;
+      font-size:11px;
+      color:rgba(255,255,255,0.85);
+    }
+
+    footer.small{
+      grid-column:1/-1;
+      color:var(--muted);
+      font-size:0.85rem;
+      text-align:center;
+      margin-top:6px;
+    }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:linear-gradient(0deg, rgba(2,6,23,0.65), rgba(2,6,23,0.8));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+    }
+    .modal{
+      width:min(720px, calc(100% - 40px));
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;
+      padding:18px;
+      box-shadow:0 10px 40px rgba(2,6,23,0.7);
+    }
+    .modal h2{ margin:0 0 8px 0; font-size:1.05rem }
+    .modal .terms{
+      color:var(--muted);
+      font-size:0.95rem;
+      line-height:1.4;
+      max-height:260px;
+      overflow:auto;
+      padding:8px;
+      margin-bottom:12px;
+      border-radius:8px;
+      background:rgba(255,255,255,0.01);
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .modal .actions{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+    }
+    .small-note{ font-size:0.85rem; color:var(--muted) }
+
+    /* responsive */
+    @media (max-width:920px){
+      .app{ grid-template-columns: 1fr; }
+      .gallery-card{ order:2 }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div>
+        <h1>Photobooth in Elisava</h1>
+        <div class="subtitle">Tomate una foto y diviertete!</div>
+      </div>
+      <div class="small-note">Estado cámara: <span id="camStatus">iniciando...</span></div>
+    </header>
+
+    <div class="camera-card">
+      <video id="video" autoplay playsinline muted></video>
+      <!-- hidden canvas used to capture frame -->
+      <canvas id="canvas" style="display:none;"></canvas>
+
+      <div class="controls">
+        <button id="btnCapture" class="btn" disabled>Hacer foto</button>
+        <button id="btnDownloadLast" class="btn" disabled>Descargar última</button>
+      </div>
+
+      <div class="status-row" style="margin-top:6px;">
+        <div class="info">
+          <div>Aceptaste términos: <strong id="acceptedLabel">No</strong></div>
+          <div id="hint" style="color:var(--muted);font-size:0.9rem;margin-top:6px;">Permite la cámara para ver la vista previa.</div>
+        </div>
+        <div class="timer" id="countdown">—</div>
+      </div>
+    </div>
+
+    <aside class="gallery-card">
+      <h3 style="margin:0 0 6px 0">Galería</h3>
+      <div class="gallery-grid" id="gallery"></div>
+      <div style="display:flex;justify-content:center;margin-top:auto;">
+        <div style="color:var(--muted);font-size:0.9rem;">Miniaturas guardadas en la sesión</div>
+      </div>
+    </aside>
+
+    <div class="modal-backdrop" id="termsModal" aria-hidden="false" role="dialog" aria-modal="true">
+      <div class="modal" role="document">
+        <h2>Términos y Condiciones: <small style="font-weight:600"></small></h2>
+        <div class="terms">
+          <details>
+            <summary style="cursor:pointer; outline:none; font-weight:700; margin-bottom:8px;">Leer términos completos</summary>
+            <p>Al continuar, autorizas que la fotografía tomada en este photobooth se utilice con fines exclusivamente académicos, dentro del proyecto de investigación visual realizado en Elisava. Tu imagen podrá ser reinterpretada gráficamente y mostrada únicamente en la presentación final del curso.</p>
+            <p>Puedes solicitar su eliminación antes del día 16/01.</p>
+          </details>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div class="small-note">Necesitas aceptar estos términos cada vez que hagas una foto.</div>
+          <div class="actions">
+            <button id="btnModalClose" class="btn" title="Cerrar (no aceptas)">Rechazar</button>
+            <button id="btnAccept" class="btn" style="background:var(--accent); color:#06231a; border:none;">Aceptar términos</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="small">Consejo: permite la cámara, luego pulsa "Hacer foto". Después de cada captura deberás aceptar los términos otra vez.</footer>
+  </div>
+
+  <script>
+    // Elementos principales
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const btnCapture = document.getElementById('btnCapture');
+    const btnAccept = document.getElementById('btnAccept');
+    const btnModalClose = document.getElementById('btnModalClose');
+    const termsModal = document.getElementById('termsModal');
+    const acceptedLabel = document.getElementById('acceptedLabel');
+    const camStatus = document.getElementById('camStatus');
+    const countdownEl = document.getElementById('countdown');
+    const gallery = document.getElementById('gallery');
+    const btnDownloadLast = document.getElementById('btnDownloadLast');
+    const btnClear = document.getElementById('btnClear');
+    let accepted = false;
+    let stream = null;
+    let lastImageDataUrl = null;
+
+    // Mostrar modal al inicio (forzado). Modal es visible por defecto en el HTML.
+    function showTermsModal(){
+      termsModal.style.display = 'flex';
+      termsModal.setAttribute('aria-hidden', 'false');
+    }
+    function hideTermsModal(){
+      termsModal.style.display = 'none';
+      termsModal.setAttribute('aria-hidden', 'true');
+    }
+
+    // Inicializar la cámara
+    async function startCamera(){
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio:false });
+        video.srcObject = stream;
+        camStatus.textContent = 'activa';
+      } catch (err) {
+        console.error('Error cámara', err);
+        camStatus.textContent = 'error / permiso denegado';
+        document.getElementById('hint').textContent = 'No se pudo activar la cámara. Comprueba permisos y que no esté en uso por otra app.';
+      }
+    }
+
+    // Captura con temporizador de 5s
+    function captureWithCountdown(seconds = 5){
+      btnCapture.disabled = true;
+      let remaining = seconds;
+      countdownEl.textContent = remaining;
+      const tick = () => {
+        remaining--;
+        if (remaining >= 0) countdownEl.textContent = remaining;
+        if (remaining <= 0) {
+          clearInterval(timerId);
+          countdownEl.textContent = '0';
+          takePhoto();
+        }
+      }
+      const timerId = setInterval(tick, 1000);
+    }
+
+    // Toma la foto (captura frame del video)
+    function takePhoto(){
+      try {
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, w, h);
+
+        // obtener dataURL (jpeg 0.92 para balance tamaño/calidad)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        lastImageDataUrl = dataUrl;
+        addThumbnail(dataUrl);
+        btnDownloadLast.disabled = false;
+
+        // tras cada foto, requerimos volver a aceptar términos
+        accepted = false;
+        acceptedLabel.textContent = 'No';
+        // deshabilitar botón de captura hasta que acepte de nuevo
+        btnCapture.disabled = true;
+        // mostrar el modal
+        showTermsModal();
+        countdownEl.textContent = '—';
+      } catch (err) {
+        console.error('Error al capturar foto', err);
+        countdownEl.textContent = 'ERR';
+        btnCapture.disabled = false;
+      }
+    }
+
+    // Añade miniatura a la galería
+    function addThumbnail(dataUrl){
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `
+        <img src="${dataUrl}" alt="Foto tomada" />
+        <div class="meta">
+          <span>${new Date().toLocaleTimeString()}</span>
+          <a href="${dataUrl}" download="photobooth_${Date.now()}.jpg" style="color:inherit;text-decoration:none;font-weight:600;">↓</a>
+        </div>
+      `;
+      // al hacer click en miniatura, abrir en nueva ventana
+      div.querySelector('img').addEventListener('click', () => {
+        window.open(dataUrl, '_blank');
+      });
+      // añadir al inicio (para que la foto más reciente esté arriba)
+      gallery.insertBefore(div, gallery.firstChild);
+    }
+
+    // Botones y eventos
+    btnAccept.addEventListener('click', () => {
+      accepted = true;
+      acceptedLabel.textContent = 'Sí';
+      hideTermsModal();
+      // habilitar botón de captura
+      btnCapture.disabled = false;
+    });
+
+    btnModalClose.addEventListener('click', () => {
+      // Rechazar -> mantener el modal visible y dejar captura deshabilitada
+      accepted = false;
+      acceptedLabel.textContent = 'No';
+      // (podríamos cerrar la cámara si se quiere privacidad extra)
+      // por ahora solo dejamos el modal abierto (haz click aceptar para continuar).
+      // mantén modal visible para enfatizar rechazo
+      // hideTermsModal(); // NO lo cerramos porque el usuario rechazó
+    });
+
+    btnCapture.addEventListener('click', () => {
+      if (!accepted) {
+        // por seguridad, forzamos la aceptación
+        showTermsModal();
+        btnCapture.disabled = true;
+        return;
+      }
+      // iniciar temporizador 5s y luego tomar foto
+      captureWithCountdown(5);
+    });
+
+    btnDownloadLast.addEventListener('click', () => {
+      if (!lastImageDataUrl) return;
+      const a = document.createElement('a');
+      a.href = lastImageDataUrl;
+      a.download = `photobooth_${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    btnClear.addEventListener('click', () => {
+      gallery.innerHTML = '';
+      btnDownloadLast.disabled = true;
+    });
+
+    // iniciar cámara al cargar
+    (async () => {
+      showTermsModal(); // ya visible, por si JS tarda, está presente en HTML
+      await startCamera();
+      // si el usuario ya aceptó en esta sesión (no persistimos en localStorage por requerimiento),
+      // debe aceptar al inicio igualmente, así que dejamos btnCapture deshabilitado hasta aceptar.
+      btnCapture.disabled = true;
+      countdownEl.textContent = '—';
+      camStatus.textContent = stream ? 'activa' : 'inactiva';
+    })();
+
+    // Limpieza al cerrar la pestaña: detener la cámara
+    window.addEventListener('beforeunload', () => {
+      if (stream){
+        stream.getTracks().forEach(t => t.stop());
+      }
+    });
+
+    // accesibilidad: permitir cerrar modal con Esc solo si aceptado (no forzar cierre)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // si el modal está visible y el usuario ya aceptó, permitir cerrarlo
+        if (!termsModal.style.display || termsModal.style.display === 'none') return;
+        if (accepted) hideTermsModal();
+      }
+    });
+  </script>
+</body>
+</html>
